@@ -40,6 +40,8 @@ def process_document(doc_path, template_path):
     figure_counter = 1
     # Regular expression to match figure captions
     figure_caption_pattern = re.compile(rf"^Figure {chapter_number}\.\d+:")
+    # Regular expression to identify code in text
+    code_term_pattern = re.compile(r'\b\w+\(\)|\b[A-Za-z][a-z]+[A-Z]\w*\b|\b\w+_\w+\b')
 
     # Define the heading styles from the template
     heading_styles = {
@@ -83,6 +85,12 @@ def process_document(doc_path, template_path):
         # Apply "P0 - Normal [PACKT]" to regular paragraphs that are not indented or lists
         if not paragraph.paragraph_format.left_indent and not paragraph.style.name.startswith("List"):
             paragraph.style = 'P0 - Normal [PACKT]'
+            # Apply ""CS - InlineCode [PACKT]" style to identified code within texts
+            for match in code_term_pattern.finditer(paragraph.text):
+                start, end = match.span()
+                run = paragraph.add_run(paragraph.text[start:end])
+                run.style = 'CS - InlineCode [PACKT]'
+                paragraph.text = paragraph.text[:start] + paragraph.text[end:]
 
     # Next, handle adding layout information after figures
     for i, paragraph in enumerate(doc.paragraphs):
