@@ -105,52 +105,80 @@ def process_document(doc_path, template_path):
             figure_counter += 1
 
     #identify_and_style_keywords(doc, keywords_file_path)
+    identify_and_style_urls(doc)
     styled_doc_path = os.path.join(app.config['UPLOAD_FOLDER'], 'styled_' + os.path.basename(doc_path))
     doc.save(styled_doc_path)
     return styled_doc_path
 
-def identify_and_style_keywords(doc, keywords_file_path):
-    # Load keywords
-    with open(keywords_file_path, 'r') as f:
-        keywords_set = set(line.strip() for line in f if line.strip())
+# def identify_and_style_keywords(doc, keywords_file_path):
+#     # Load keywords
+#     with open(keywords_file_path, 'r') as f:
+#         keywords_set = set(line.strip() for line in f if line.strip())
 
-    keyword_style = "CS - KeyWord [PACKT]"
+#     keyword_style = "CS - KeyWord [PACKT]"
 
-    # Regex pattern for keywords
-    keyword_pattern = re.compile(r'\b([A-Za-z\s]+)\s\(([A-Z]+)\)')
+#     # Regex pattern for keywords
+#     keyword_pattern = re.compile(r'\b([A-Za-z\s]+)\s\(([A-Z]+)\)')
+
+#     for para in doc.paragraphs:
+#         matches = keyword_pattern.finditer(para.text)
+#         if matches:
+#             # Split paragraph into runs to apply styles selectively
+#             original_text = para.text
+#             para.clear()  # Clear the paragraph's existing runs
+#             cursor = 0
+
+#             for match in matches:
+#                 full_term_start, full_term_end = match.span(1)  # Span of the full term
+#                 abbr_start, abbr_end = match.span(2)  # Span of the abbreviation
+
+#                 # Combine the full term and abbreviation
+#                 keyword = f"{match.group(1)} ({match.group(2)})"
+
+#                 # Add text before the match
+#                 if cursor < full_term_start:
+#                     para.add_run(original_text[cursor:full_term_start])
+
+#                 # Apply the style
+#                 if keyword in keywords_set:
+#                     full_term_run = para.add_run(original_text[full_term_start:full_term_end])
+#                     full_term_run.style = keyword_style
+#                     abbr_run = para.add_run(original_text[abbr_start - 1:abbr_end + 1])  # Include parentheses
+#                     abbr_run.style = keyword_style
+#                 else:
+#                     # Normal text style if no match
+#                     para.add_run(original_text[full_term_start:abbr_end + 1])
+
+#                 cursor = abbr_end + 1
+
+#             # Add remaining text after the last match
+#             if cursor < len(original_text):
+#                 para.add_run(original_text[cursor:])
+
+def identify_and_style_urls(doc):
+    url_style = "CS - URL [PACKT]"
+    url_pattern = re.compile(r'https?://(?:www\.)?[^\s]+')
 
     for para in doc.paragraphs:
-        matches = keyword_pattern.finditer(para.text)
+        matches = url_pattern.finditer(para.text)
         if matches:
-            # Split paragraph into runs to apply styles selectively
             original_text = para.text
-            para.clear()  # Clear the paragraph's existing runs
+            para.clear()
             cursor = 0
 
             for match in matches:
-                full_term_start, full_term_end = match.span(1)  # Span of the full term
-                abbr_start, abbr_end = match.span(2)  # Span of the abbreviation
+                url_start, url_end = match.span()  # Span of the URL
 
-                # Combine the full term and abbreviation
-                keyword = f"{match.group(1)} ({match.group(2)})"
+                # Add text before the URL
+                if cursor < url_start:
+                    para.add_run(original_text[cursor:url_start])
 
-                # Add text before the match
-                if cursor < full_term_start:
-                    para.add_run(original_text[cursor:full_term_start])
+                # Add the URL with the URL style
+                url_run = para.add_run(original_text[url_start:url_end])
+                url_run.style = url_style
+                cursor = url_end #Update the cursor
 
-                # Apply the style
-                if keyword in keywords_set:
-                    full_term_run = para.add_run(original_text[full_term_start:full_term_end])
-                    full_term_run.style = keyword_style
-                    abbr_run = para.add_run(original_text[abbr_start - 1:abbr_end + 1])  # Include parentheses
-                    abbr_run.style = keyword_style
-                else:
-                    # Normal text style if no match
-                    para.add_run(original_text[full_term_start:abbr_end + 1])
-
-                cursor = abbr_end + 1
-
-            # Add remaining text after the last match
+            # Add remaining text after the last URL
             if cursor < len(original_text):
                 para.add_run(original_text[cursor:])
 
