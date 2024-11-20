@@ -106,6 +106,7 @@ def process_document(doc_path, template_path):
 
     #identify_and_style_keywords(doc, keywords_file_path)
     identify_and_style_urls(doc)
+    style_images_and_captions(doc)
     styled_doc_path = os.path.join(app.config['UPLOAD_FOLDER'], 'styled_' + os.path.basename(doc_path))
     doc.save(styled_doc_path)
     return styled_doc_path
@@ -205,6 +206,30 @@ def identify_and_style_urls(doc):
             for run in runs:
                 if run._element.tag.endswith("drawing") or run._element.tag.endswith("object"):
                     para._p.append(run._element)
+
+def style_images_and_captions(doc):
+    figure_style = "F0 - Figure [PACKT]"
+    caption_style = "F0 - FigureCaption [PACKT]"
+
+    paragraphs = doc.paragraphs
+    for i, para in enumerate(paragraphs):
+        # Check paragraphs for images
+        contains_image = any(
+            run._element.xpath(".//w:drawing") or run._element.xpath(".//w:object")
+            for run in para.runs
+        )
+
+        if contains_image:
+            print(f"Image found in paragraph {i}") #for debug purpose
+            para.style = figure_style
+
+            # Style the figure caption
+            if i + 1 < len(paragraphs):
+                caption_para = paragraphs[i + 1]
+                # Apply the style
+                if caption_para.text.strip():
+                    print(f"Caption styled for paragraph {i + 1}")
+                    caption_para.style = caption_style
 
 if __name__ == '__main__':
     app.run(debug=True)
