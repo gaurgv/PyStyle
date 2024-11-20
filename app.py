@@ -30,6 +30,7 @@ def upload_file():
 
 def process_document(doc_path, template_path):
     doc = Document(doc_path)
+    #keywords_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'keyword_list.txt')
     book_id = os.path.basename(doc_path).split('_')[0]
     chapter_number = doc.paragraphs[0].text.strip()
     # Initialize a counter for figure numbers
@@ -103,19 +104,21 @@ def process_document(doc_path, template_path):
             # Increment the figure counter
             figure_counter += 1
 
-    identify_and_style_keywords(doc)
+    #identify_and_style_keywords(doc, keywords_file_path)
     styled_doc_path = os.path.join(app.config['UPLOAD_FOLDER'], 'styled_' + os.path.basename(doc_path))
     doc.save(styled_doc_path)
     return styled_doc_path
 
-def identify_and_style_keywords(doc):
-    # Define the keyword style
+def identify_and_style_keywords(doc, keywords_file_path):
+    # Load keywords
+    with open(keywords_file_path, 'r') as f:
+        keywords_set = set(line.strip() for line in f if line.strip())
+
     keyword_style = "CS - KeyWord [PACKT]"
 
-    # Define the regex pattern for keywords
+    # Regex pattern for keywords
     keyword_pattern = re.compile(r'\b([A-Za-z\s]+)\s\(([A-Z]+)\)')
 
-    # Iterate through paragraphs
     for para in doc.paragraphs:
         matches = keyword_pattern.finditer(para.text)
         if matches:
@@ -128,19 +131,23 @@ def identify_and_style_keywords(doc):
                 full_term_start, full_term_end = match.span(1)  # Span of the full term
                 abbr_start, abbr_end = match.span(2)  # Span of the abbreviation
 
+                # Combine the full term and abbreviation
+                keyword = f"{match.group(1)} ({match.group(2)})"
+
                 # Add text before the match
                 if cursor < full_term_start:
                     para.add_run(original_text[cursor:full_term_start])
 
-                # Add the full term with the keyword style
-                full_term_run = para.add_run(original_text[full_term_start:full_term_end])
-                full_term_run.style = keyword_style
+                # Apply the style
+                if keyword in keywords_set:
+                    full_term_run = para.add_run(original_text[full_term_start:full_term_end])
+                    full_term_run.style = keyword_style
+                    abbr_run = para.add_run(original_text[abbr_start - 1:abbr_end + 1])  # Include parentheses
+                    abbr_run.style = keyword_style
+                else:
+                    # Normal text style if no match
+                    para.add_run(original_text[full_term_start:abbr_end + 1])
 
-                # Add the abbreviation with the keyword style
-                abbr_run = para.add_run(original_text[abbr_start - 1:abbr_end + 1])  # Include parentheses
-                abbr_run.style = keyword_style
-
-                # Update the cursor
                 cursor = abbr_end + 1
 
             # Add remaining text after the last match
