@@ -157,30 +157,54 @@ def process_document(doc_path, template_path):
 
 def identify_and_style_urls(doc):
     url_style = "CS - URL [PACKT]"
-    url_pattern = re.compile(r'https?://(?:www\.)?[^\s]+')
-
+    url_pattern = re.compile(r'(?:\(|\[)?(https?://(?:www\.)?[^\s]+)(?:\)|\])?')
     for para in doc.paragraphs:
+        # Skip paragraphs that contain images
+        if "graphic" in para._p.xml:
+            continue
+
+        # Apply the URL style
+        for run in para.runs:
+            if run.style and run.style.name == "Hyperlink":
+                run.style = url_style
+
+        # Identify and style URLs using regex
         matches = url_pattern.finditer(para.text)
         if matches:
+            # Reconstruct the paragraph to preserve existing non-text elements
             original_text = para.text
-            para.clear()
+            runs = list(para.runs)  # Backup runs for non-text content
+            para.clear()  # Clear the paragraph
+
             cursor = 0
-
             for match in matches:
-                url_start, url_end = match.span()  # Span of the URL
+                full_span = match.span()  # Span of the entire match (including brackets/parentheses)
+                url_span = match.span(1)  # Span of the captured URL only
 
-                # Add text before the URL
-                if cursor < url_start:
-                    para.add_run(original_text[cursor:url_start])
+                # Add text before the match
+                if cursor < full_span[0]:
+                    para.add_run(original_text[cursor:full_span[0]])
+
+                if full_span[0] < url_span[0]:
+                    para.add_run(original_text[full_span[0]:url_span[0]])
 
                 # Add the URL with the URL style
-                url_run = para.add_run(original_text[url_start:url_end])
+                url_run = para.add_run(original_text[url_span[0]:url_span[1]])
                 url_run.style = url_style
-                cursor = url_end #Update the cursor
 
-            # Add remaining text after the last URL
+                if url_span[1] < full_span[1]:
+                    para.add_run(original_text[url_span[1]:full_span[1]])
+
+                cursor = full_span[1]
+
+            # Add remaining text after the last match
             if cursor < len(original_text):
                 para.add_run(original_text[cursor:])
+
+            # Readd images
+            for run in runs:
+                if run._element.tag.endswith("drawing") or run._element.tag.endswith("object"):
+                    para._p.append(run._element)
 
 if __name__ == '__main__':
     app.run(debug=True)
