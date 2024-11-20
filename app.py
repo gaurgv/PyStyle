@@ -102,10 +102,50 @@ def process_document(doc_path, template_path):
 
             # Increment the figure counter
             figure_counter += 1
-    
+
+    identify_and_style_keywords(doc)
     styled_doc_path = os.path.join(app.config['UPLOAD_FOLDER'], 'styled_' + os.path.basename(doc_path))
     doc.save(styled_doc_path)
     return styled_doc_path
+
+def identify_and_style_keywords(doc):
+    # Define the keyword style
+    keyword_style = "CS - KeyWord [PACKT]"
+
+    # Define the regex pattern for keywords
+    keyword_pattern = re.compile(r'\b([A-Za-z\s]+)\s\(([A-Z]+)\)')
+
+    # Iterate through paragraphs
+    for para in doc.paragraphs:
+        matches = keyword_pattern.finditer(para.text)
+        if matches:
+            # Split paragraph into runs to apply styles selectively
+            original_text = para.text
+            para.clear()  # Clear the paragraph's existing runs
+            cursor = 0
+
+            for match in matches:
+                full_term_start, full_term_end = match.span(1)  # Span of the full term
+                abbr_start, abbr_end = match.span(2)  # Span of the abbreviation
+
+                # Add text before the match
+                if cursor < full_term_start:
+                    para.add_run(original_text[cursor:full_term_start])
+
+                # Add the full term with the keyword style
+                full_term_run = para.add_run(original_text[full_term_start:full_term_end])
+                full_term_run.style = keyword_style
+
+                # Add the abbreviation with the keyword style
+                abbr_run = para.add_run(original_text[abbr_start - 1:abbr_end + 1])  # Include parentheses
+                abbr_run.style = keyword_style
+
+                # Update the cursor
+                cursor = abbr_end + 1
+
+            # Add remaining text after the last match
+            if cursor < len(original_text):
+                para.add_run(original_text[cursor:])
 
 if __name__ == '__main__':
     app.run(debug=True)
